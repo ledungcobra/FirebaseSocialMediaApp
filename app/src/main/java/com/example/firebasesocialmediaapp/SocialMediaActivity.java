@@ -25,8 +25,10 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
+import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
@@ -39,6 +41,7 @@ import com.shashank.sony.fancytoastlib.FancyToast;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.UUID;
 
 public class SocialMediaActivity extends AppCompatActivity implements AdapterView.OnItemClickListener {
@@ -54,6 +57,8 @@ public class SocialMediaActivity extends AppCompatActivity implements AdapterVie
     private ArrayAdapter adapter;
     private ArrayList<String> usernames;
     private ArrayList<String> uids;
+    private String imageDownloadLink;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,6 +75,10 @@ public class SocialMediaActivity extends AppCompatActivity implements AdapterVie
         btnCreatePost.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                uids.clear();
+                usernames.clear();
+                adapter.notifyDataSetChanged();
+
                 uploadImageToServer();
             }
         });
@@ -104,6 +113,10 @@ public class SocialMediaActivity extends AppCompatActivity implements AdapterVie
         if (item.getItemId() == R.id.logOutItem) {
 
             logOut();
+
+        } else if (item.getItemId() == R.id.viewPostItem) {
+
+            startActivity(new Intent(this,ViewPostActivity.class));
 
         }
         return super.onOptionsItemSelected(item);
@@ -188,7 +201,7 @@ public class SocialMediaActivity extends AppCompatActivity implements AdapterVie
     private void uploadImageToServer() {
         // Create a storage reference from our app
 
-        if (postImageView != null) {
+        if (receivedBitMap != null) {
 
             FirebaseStorage storage = FirebaseStorage.getInstance();
             StorageReference storageRef = storage.getReference();
@@ -196,7 +209,7 @@ public class SocialMediaActivity extends AppCompatActivity implements AdapterVie
 
 
 // Create a reference to "mountains.jpg"
-            StorageReference mountainsRef = storageRef.child("image/mountains.jpg");
+            StorageReference mountainsRef = storageRef.child("image/" + imageIdentifier);
             // Get the data from an ImageView as bytes
             postImageView.setDrawingCacheEnabled(true);
             postImageView.buildDrawingCache();
@@ -225,7 +238,7 @@ public class SocialMediaActivity extends AppCompatActivity implements AdapterVie
                         @Override
                         public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
                             uids.add(dataSnapshot.getKey());
-                            String username = dataSnapshot.child("username").getValue()+"";
+                            String username = dataSnapshot.child("username").getValue() + "";
                             usernames.add(username);
                             adapter.notifyDataSetChanged();
 
@@ -252,6 +265,20 @@ public class SocialMediaActivity extends AppCompatActivity implements AdapterVie
                         }
                     });
 
+                    taskSnapshot.getMetadata().getReference().getDownloadUrl().addOnCompleteListener(new OnCompleteListener<Uri>() {
+                        @Override
+                        public void onComplete(@NonNull Task<Uri> task) {
+
+                            if (task.isSuccessful()) {
+
+                                imageDownloadLink = task.getResult().toString();
+
+                            }
+
+
+                        }
+                    }).toString();
+
                 }
             });
 
@@ -262,6 +289,31 @@ public class SocialMediaActivity extends AppCompatActivity implements AdapterVie
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        HashMap<String, String> myPost = new HashMap<>();
+        myPost.put("des", edtDescription.getText().toString());
+        myPost.put("imageIdentifier", imageIdentifier);
+        myPost.put("imageLink", imageDownloadLink);
+        myPost.put("fromWhom", FirebaseAuth.getInstance().getCurrentUser().getDisplayName());
+
+        FirebaseDatabase.getInstance().getReference()
+                .child("my_users")
+                .child(uids.get(position))
+                .child("received_post")
+                .push().setValue(myPost).addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(@NonNull Task<Void> task) {
+                if(task.isSuccessful()){
+
+                    showToast("Sending successfully",FancyToast.SUCCESS);
+
+                }else{
+
+                    showToast("Sending is failed",FancyToast.WARNING);
+
+                }
+            }
+        });
+
 
     }
 }

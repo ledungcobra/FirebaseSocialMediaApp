@@ -3,7 +3,12 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item android:id="@+id/logOutItem"
         android:title="LOG OUT"
+        android:orderInCategory="101"
+        app:showAsAction="collapseActionView"/>
+    <item android:id="@+id/viewPostItem"
+        android:title="View Post"
         android:orderInCategory="100"
         app:showAsAction="always"/>
+
 
 </menu>
